@@ -3,6 +3,7 @@ package com.example.authserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
@@ -18,6 +19,8 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 	private PasswordEncoder passwordEncoder;
 	@Autowired
 	private AuthenticationManager authenticationManager; 
+	@Autowired
+	private UserDetailsService userDetailsService;
 	
 	@Override
 	public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
@@ -25,14 +28,18 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 			.inMemory()
 				.withClient("demoapi-web")
 				.secret(passwordEncoder.encode("demoapiweb123"))
-				.authorizedGrantTypes("password")
+				.authorizedGrantTypes("password", "refresh_token")
 				.scopes("write", "read")
-				.accessTokenValiditySeconds(60 * 60 * 6)
+				.accessTokenValiditySeconds(60 * 60 * 6) // 6 horas (padrão é 12 horas)
+				.refreshTokenValiditySeconds(60 * 60 * 12)
+			.and()
+				.withClient("backend-service-01")
+				.secret(passwordEncoder.encode("backendservice01-123"))
+				.authorizedGrantTypes("client_credentials")
+				.scopes("read")
 			.and()
 				.withClient("checktoken")
-				.secret(passwordEncoder.encode("check123"))
-				.authorizedGrantTypes("password")
-				.scopes("write", "read");
+				.secret(passwordEncoder.encode("check123"));
 	}
 	
 	@Override
@@ -43,6 +50,9 @@ public class AuthorizationServerConfig extends AuthorizationServerConfigurerAdap
 	
 	@Override
 	public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-		endpoints.authenticationManager(authenticationManager);
+		endpoints
+			.authenticationManager(authenticationManager)
+			.userDetailsService(userDetailsService)
+			.reuseRefreshTokens(false);
 	}
 }
